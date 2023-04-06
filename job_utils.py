@@ -1,7 +1,16 @@
 import random
 from helper import *
 from authentication import *
+import datetime
+import json
 
+
+def readUser():
+    try:
+        with open("users.json", "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
 
 
 # this function creates a new job
@@ -16,7 +25,7 @@ def createJob(uName):
     # gets the dictionary of jobs and name from the userName
     # then appends to json file
     jobs = getJson("jobs")
-    users = readUsers()
+    users = readUser()
     name = "default"
     applicants = []
     username = uName    
@@ -31,7 +40,17 @@ def createJob(uName):
     with open("jobs.json", "w") as f:
         json.dump(jobs, f)
 
+    updated_users = []
+    for user in users:
+        if uName not in user["username"]:
+            user.setdefault("newPosting", []).append(jobID)
+        updated_users.append(user)
+
+    with open("users.json", "w") as f:
+        json.dump(updated_users, f)
+
     print("Job created! Returning back to options...")
+
 
 # this function shows all the job titles in jobs.json
 def showJobs(uName):
@@ -196,10 +215,11 @@ def applyForJob(i, uName):
     createApplication(jobIdentifier, uName)
 
     # adds job to jobsApplied in users
-    users = readUsers()
+    users = readUser()
     for user in users:
         if user["username"] == uName:
             user["jobsApplied"].append(jobIdentifier)
+            user["lastApplied"] = str(datetime.date.today())
     with open("users.json", "w") as f:
         json.dump(users, f)
 
@@ -210,7 +230,7 @@ def applyForJob(i, uName):
 
 # this function saves the job in the Saved Jobs list for the user
 def saveJobs(jobId, uName):
-    users = readUsers()
+    users = readUser()
     saved = False
     for user in users:
         if user["username"] == uName:
@@ -233,14 +253,31 @@ def deleteJob(i, uName):
     # gets the dictionary of jobs
     jobs = getJson("jobs")    
  
-    # gets the job ID   
+    # gets the job name
     jobSelected = jobs[i-1]
-    jobIdentifier = jobSelected["jobID"]
+    jobName = jobSelected["title"]
 
     # gets list of the job applicants
     jobApplicants = []
     jobApplicants.append(jobSelected["applicants"])
 
+    # gets a list of users
+    users = getJson("users")
+
+    # searching through list of job applicants
+    for applicant in jobApplicants:
+        # searching through users
+        for user in users:
+            # if adding to list
+            if isinstance(user["notifications"], list):
+                newEntry = [{"deletedJob": jobName}]
+                newEntry.extend(user["notifications"])
+                user["notfications"] = newEntry
+            # if user == applicant, put job name in dictionary
+            if user["username"] == applicant:
+                newEntry = {"deletedJob": jobName}
+                temp = [newEntry, user["notifications"]]
+                user["notifications"] = temp
      
     jobs.remove(jobSelected)
     with open("jobs.json", "w") as f:
@@ -267,7 +304,7 @@ def createApplication(jobId, uName):
 
 # shows applied jobs
 def showAppliedJobs(uName):
-    users = readUsers()
+    users = readUser()
 
     # gets the dictionary of jobs
     jobs = getJson("jobs")    
@@ -296,7 +333,7 @@ def showAppliedJobs(uName):
 
 # shows saved jobs
 def showSavedJobs(uName):
-    users = readUsers()
+    users = readUser()
 
     # gets the dictionary of jobs
     jobs = getJson("jobs")    
@@ -355,7 +392,7 @@ def deleteJob(i, uName, jobID):
 
 def showNotAppliedJobs(uName):
     jobs = getJson("jobs")
-    users = readUsers()
+    users = readUser()
     userAppliedJobs = []
 
     # get the jobs applied by the user and store them in userAppliedJobs
